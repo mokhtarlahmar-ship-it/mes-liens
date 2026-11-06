@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mes liens</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f4c5c">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#eef2f1;--card:#fff;--ink:#14232b;--mute:#5d6f76;--line:#d3dcdb;--main:#0f4c5c;--on-main:#fff;--acc:#e09f3e;--danger:#b3261e;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1f;--card:#17272e;--ink:#e8f0ef;--mute:#98adb3;--line:#2a3e46;--main:#7cc4d4;--on-main:#0e1a1f;--acc:#e8b05a;--danger:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1a1f;--card:#17272e;--ink:#e8f0ef;--mute:#98adb3;--line:#2a3e46;--main:#7cc4d4;--on-main:#0e1a1f;--acc:#e8b05a;--danger:#ff8a80;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Figtree",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.7rem;margin:0 0 16px;letter-spacing:-.02em}
+form,.bar{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px}
+input{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 140px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 12px}
+button.main{background:var(--main);color:var(--on-main);border-color:var(--main);font-weight:600}
+button.danger{color:var(--danger)}
+.bar{margin:16px 0 8px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tags button{padding:4px 10px;border-radius:999px;font-size:.85rem}
+.tags button[aria-pressed="true"]{background:var(--main);color:var(--on-main);border-color:var(--main)}
+ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px}
+li a.t{font-weight:600;color:var(--main);text-decoration:none;font-size:1.05rem;overflow-wrap:anywhere}
+li a.t:hover{text-decoration:underline}
+.u{color:var(--mute);font-size:.85rem;overflow-wrap:anywhere}
+.tag{font-size:.8rem;color:var(--mute)}
+.act{display:flex;gap:6px;flex-wrap:wrap}
+.act button{padding:4px 10px;font-size:.85rem}
+.empty{color:var(--mute);text-align:center;padding:24px 0}
+.foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+#msg{min-height:1.4em;color:var(--mute);font-size:.9rem;margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Mes liens</h1>
+
+<form id="f" autocomplete="off">
+  <input id="url" type="text" inputmode="url" placeholder="Adresse du lien (https://…)" aria-label="Adresse du lien" required>
+  <div class="row">
+    <input id="title" type="text" placeholder="Titre (facultatif)" aria-label="Titre">
+    <input id="tag" type="text" placeholder="Étiquette (facultatif)" aria-label="Étiquette">
+  </div>
+  <div class="row">
+    <button class="main" id="save" type="submit">Ajouter le lien</button>
+    <button id="cancel" type="button" hidden>Annuler la modification</button>
+  </div>
+</form>
+
+<div class="bar">
+  <input id="q" type="search" placeholder="Rechercher un lien" aria-label="Rechercher un lien">
+  <div class="tags" id="tags"></div>
+</div>
+
+<ul id="list"></ul>
+
+<div class="foot">
+  <button id="exp" type="button">Exporter (sauvegarde)</button>
+  <button id="imp" type="button">Importer</button>
+  <input id="file" type="file" accept="application/json,.json" hidden>
+</div>
+<div id="msg" role="status"></div>
+</main>
+
+<script>
+(function(){
+  var KEY="mes-liens-v1", links=[], editId=null, filterTag="";
+  var $=function(id){return document.getElementById(id)};
+
+  function load(){try{var r=localStorage.getItem(KEY);links=r?JSON.parse(r):[]}catch(e){links=[]}if(!Array.isArray(links))links=[]}
+  function persist(){try{localStorage.setItem(KEY,JSON.stringify(links))}catch(e){say("Enregistrement impossible sur cet appareil. Utilisez Exporter pour sauvegarder.")}}
+  function say(t){$("msg").textContent=t}
+
+  function norm(u){u=u.trim();if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u="https://"+u;try{var x=new URL(u);if(!/^https?:$/.test(x.protocol))return null;return x.href}catch(e){return null}}
+  function host(u){try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return u}}
+  function el(tag,cls,txt){var n=document.createElement(tag);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n}
+
+  function render(){
+    var q=$("q").value.trim().toLowerCase();
+    var all=Array.from(new Set(links.map(function(l){return l.tag}).filter(Boolean))).sort();
+    if(filterTag&&all.indexOf(filterTag)<0)filterTag="";
+    var tg=$("tags");tg.textContent="";
+    all.forEach(function(t){var b=el("button",null,t);b.type="button";b.setAttribute("aria-pressed",String(t===filterTag));
+      b.onclick=function(){filterTag=(filterTag===t?"":t);render()};tg.appendChild(b)});
+    var shown=links.filter(function(l){
+      if(filterTag&&l.tag!==filterTag)return false;
+      return !q||(l.title+" "+l.url+" "+(l.tag||"")).toLowerCase().indexOf(q)>=0}).sort(function(a,b){return b.added-a.added});
+    var ul=$("list");ul.textContent="";
+    if(!shown.length){var e=el("li","empty",links.length?"Aucun lien ne correspond.":"Aucun lien enregistré. Collez une adresse ci-dessus pour commencer.");ul.appendChild(e);return}
+    shown.forEach(function(l){
+      var li=el("li");
+      var a=el("a","t",l.title);a.href=l.url;a.target="_blank";a.rel="noopener noreferrer";li.appendChild(a);
+      li.appendChild(el("div","u",host(l.url)));
+      if(l.tag)li.appendChild(el("div","tag",l.tag));
+      var act=el("div","act");
+      var c=el("button",null,"Copier");c.type="button";c.onclick=function(){copy(l.url)};
+      var m=el("button",null,"Modifier");m.type="button";m.onclick=function(){startEdit(l.id)};
+      var d=el("button","danger","Supprimer");d.type="button";d.onclick=function(){if(confirm("Supprimer ce lien ?")){links=links.filter(function(x){return x.id!==l.id});persist();render();say("Lien supprimé.")}};
+      act.append(c,m,d);li.appendChild(act);ul.appendChild(li)});
+  }
+
+  function copy(t){
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){say("Lien copié.")},function(){say("Copie impossible.")})}
+    else say("Copie impossible sur ce navigateur.");
+  }
+  function startEdit(id){var l=links.find(function(x){return x.id===id});if(!l)return;editId=id;
+    $("url").value=l.url;$("title").value=l.title;$("tag").value=l.tag||"";
+    $("save").textContent="Enregistrer les modifications";$("cancel").hidden=false;$("url").focus();window.scrollTo(0,0)}
+  function resetForm(){editId=null;$("f").reset();$("save").textContent="Ajouter le lien";$("cancel").hidden=true}
+  $("cancel").onclick=resetForm;
+
+  $("f").onsubmit=function(ev){
+    ev.preventDefault();
+    var u=norm($("url").value);
+    if(!u){say("Adresse invalide. Exemple : https://exemple.com");return}
+    var title=$("title").value.trim()||host(u), tag=$("tag").value.trim();
+    if(editId){var l=links.find(function(x){return x.id===editId});if(l){l.url=u;l.title=title;l.tag=tag}say("Lien modifié.")}
+    else{
+      if(links.some(function(x){return x.url===u})){say("Ce lien est déjà enregistré.");return}
+      links.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),url:u,title:title,tag:tag,added:Date.now()});say("Lien ajouté.")}
+    persist();resetForm();render();
+  };
+  $("q").oninput=render;
+
+  $("exp").onclick=function(){
+    var blob=new Blob([JSON.stringify(links,null,2)],{type:"application/json"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mes-liens.json";document.body.appendChild(a);a.click();a.remove();
+    say("Si le téléchargement ne démarre pas, copiez vos liens un par un avec « Copier ».");
+  };
+  $("imp").onclick=function(){$("file").click()};
+  $("file").onchange=function(){
+    var f=this.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){try{var data=JSON.parse(r.result),n=0;
+      if(!Array.isArray(data))throw 0;
+      data.forEach(function(x){var u=x&&norm(String(x.url||""));if(u&&!links.some(function(y){return y.url===u})){links.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),url:u,title:String(x.title||host(u)),tag:String(x.tag||""),added:x.added||Date.now()});n++}});
+      persist();render();say(n+" lien(s) importé(s).")}catch(e){say("Fichier non valide.")}};
+    r.readAsText(f);this.value="";
+  };
+
+  load();render();
+
+  // Partage depuis une autre appli (Android) : préremplit l’adresse
+  try{
+    var sp=new URLSearchParams(location.search);
+    var shared=sp.get("url")||sp.get("text")||"";
+    var m=shared.match(/https?:\/\/\S+/);
+    if(m){$("url").value=m[0];if(sp.get("title"))$("title").value=sp.get("title");say("Lien reçu : vérifiez puis appuyez sur « Ajouter le lien ».");history.replaceState(null,"",location.pathname)}
+  }catch(e){}
+})();
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+</script>
+</body>
+</html>
